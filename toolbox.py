@@ -1,5 +1,5 @@
 """
-DEDSEC TOOLBOX v8.0
+DEDSEC TOOLBOX v9.5
 Interface gráfica estilo DedSec / Watch Dogs
 By GabrielRj6 e Antigravity
 Requer: customtkinter, Pillow
@@ -18,6 +18,54 @@ from tkinter import messagebox
 import ctypes
 import json
 import datetime
+import urllib.request
+import tempfile
+import shutil
+
+# ── Versão do App ──
+APP_VERSION = "9.5"
+GITHUB_REPO = "GabrielRj6/dedsec-toolbox"
+UPDATE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+
+# ── Auto-Updater ──
+class UpdateChecker:
+    @staticmethod
+    def check(silent=False):
+        try:
+            req = urllib.request.Request(UPDATE_URL, headers={"User-Agent": "DEDSEC-TOOLBOX"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode())
+                latest = data.get("tag_name", "").replace("v", "").strip()
+                if latest and latest != APP_VERSION:
+                    assets = data.get("assets", [])
+                    download_url = None
+                    for asset in assets:
+                        if asset.get("name", "").endswith(".exe"):
+                            download_url = asset.get("browser_download_url")
+                            break
+                    if download_url:
+                        return latest, download_url
+                    return latest, None
+        except Exception:
+            pass
+        return None, None
+
+    @staticmethod
+    def download_and_install(url, version):
+        try:
+            tmp_dir = tempfile.mkdtemp()
+            exe_path = os.path.join(tmp_dir, f"DEDSEC_TOOLBOX_v{version}.exe")
+            messagebox.showinfo("Atualização", f"Baixando versão {version}...")
+            urllib.request.urlretrieve(url, exe_path)
+            batch_path = os.path.join(tmp_dir, "update.bat")
+            exe_current = sys.executable
+            with open(batch_path, "w") as f:
+                f.write(f'@echo off\ntimeout /t 2 /nobreak >nul\ncopy /Y "{exe_path}" "{exe_current}"\ndel "{exe_path}"\nstart "" "{exe_current}"\nrmdir "{tmp_dir}" 2>nul\ndel "%~f0"')
+            subprocess.Popen(batch_path, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            return True
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao baixar atualização:\n{e}")
+            return False
 
 # ─────────────────────────────────────────────
 #  CAMINHO BASE (funciona tanto .py quanto .exe)
@@ -2128,7 +2176,7 @@ class DossierMasterPanel(ctk.CTkFrame):
         try:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write("="*60 + "\n")
-                f.write(f"  DEDSEC TOOLBOX v8.0 - RELATÓRIO TÉCNICO OFICIAL  \n")
+                f.write(f"  DEDSEC TOOLBOX v{APP_VERSION} - RELATÓRIO TÉCNICO OFICIAL  \n")
                 f.write("="*60 + "\n\n")
                 f.write(f"◈ CLIENTE / PC: {pc_data.get('hostname','?')}\n")
                 f.write(f"◈ TÉCNICO Resp: {pc_data.get('name','?')}\n")
@@ -2398,7 +2446,7 @@ class App(ctk.CTk):
 
     def __init__(self):
         super().__init__()
-        self.title(f"DEDSEC TOOLBOX v8.0  —  {USER_NAME}")
+        self.title(f"DEDSEC TOOLBOX v{APP_VERSION}  —  {USER_NAME}")
 
         # ── Registro Automático no Dossiê ──
         HistoryManager.register_machine()
@@ -2572,7 +2620,7 @@ class App(ctk.CTk):
         # Textos fixos (fica sempre na frente da imagem)
         self._header_canvas.create_text(
             20, 42, anchor="nw",
-            text="◈ DEDSEC TOOLBOX  v8.0",
+            text=f"◈ DEDSEC TOOLBOX  v{APP_VERSION}",
             font=("Courier New", 18, "bold"),
             fill="#00ff41",
             tags="htext"
@@ -2709,7 +2757,7 @@ class App(ctk.CTk):
         self._sidebar_logo.pack(pady=(12, 4), padx=8)
 
         sub = ctk.CTkLabel(
-            scroll_area, text="DEDSEC TOOLBOX v8.0",
+            scroll_area, text=f"DEDSEC TOOLBOX v{APP_VERSION}",
             font=("Courier New", 10),
             text_color=GRAY_DIM, fg_color=BG_PANEL
         )
@@ -2868,6 +2916,22 @@ def main():
 
     root = ctk.CTk()
     root.withdraw()
+
+    def check_for_updates_async():
+        def _check():
+            latest, url = UpdateChecker.check(silent=True)
+            if latest and url:
+                root.after(0, lambda: _notify_update(latest, url))
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _notify_update(version, url):
+        if messagebox.askyesno("Atualização Disponível",
+            f"Nova versão {version} disponível!\n\nDeseja baixar agora?"):
+            UpdateChecker.download_and_install(url, version)
+            root.destroy()
+            sys.exit()
+
+    check_for_updates_async()
 
     def launch_splash(name):
         """Depois do nome confirmado, roda splash e abre App."""
