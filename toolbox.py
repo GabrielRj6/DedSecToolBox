@@ -2919,9 +2919,11 @@ def main():
 
     def check_for_updates_async():
         def _check():
-            latest, url = UpdateChecker.check(silent=True)
+            latest, url = UpdateChecker.check(silent=False)
             if latest and url:
                 root.after(0, lambda: _notify_update(latest, url))
+            else:
+                root.after(0, lambda: messagebox.showinfo("Update", f"Versao atual: {APP_VERSION}\nNenhuma atualizacao disponivel."))
         threading.Thread(target=_check, daemon=True).start()
 
     def _notify_update(version, url):
