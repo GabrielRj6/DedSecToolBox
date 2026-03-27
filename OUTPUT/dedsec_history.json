@@ -1,0 +1,18 @@
+{
+    "03000200-0400-0500-0006-000700080009": {
+        "name": "GabrielRj6",
+        "first_seen": "27/03/2026 14:10:50",
+        "hostname": "WIN-JBCOU6K9RB6",
+        "ip": "192.168.3.80",
+        "os": "Windows 11",
+        "cpu": "AMD Ryzen 5 5600GT with Radeon Graphics",
+        "ram": "16 GB",
+        "history": [
+            {
+                "date": "27/03/2026 14:10:50",
+                "action": "MAQUINA REGISTRADA NO SISTEMA"
+            }
+        ],
+        "notes": []
+    }
+}

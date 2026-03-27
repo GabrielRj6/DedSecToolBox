@@ -1,0 +1,38 @@
+╔══════════════════════════════════════════════════════════════╗
+║       REDSEC TOOLBOX v7.2 — GUIA COMPLETO                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+NOVIDADES v7.2
+──────────────
+  ★ Visualizador de Senhas Wi-Fi: Recupera SSIDs e senhas salvas no PC.
+  ★ IP Tracker & Whois PRO: Rastreamento mais preciso com geolocalização.
+  ★ Speedtest Robusto: Correção de bugs no teste de velocidade.
+  ★ Código Otimizado: Removidos blocos fantasmas e bugs de indentação.
+  ★ Admin Auto-Elevation: O script agora solicita admin automaticamente.
+
+COMO USAR O TERMINAL EXPANSÍVEL
+────────────────────────────────
+  • Ao clicar qualquer botão de ação, o terminal expande sozinho
+    e os botões de opções somem para dar espaço ao output.
+  • Para voltar aos botões: clique "▼ MOSTRAR BOTÕES".
+  • Para ver o terminal sem executar nada: clique "▲ OCULTAR TERMINAL".
+
+TESTAR
+──────
+  python toolbox.py
+
+COMPILAR PARA .EXE
+──────────────────
+  1. Duplo clique em BUILD.bat
+  2. Aguarde 3-5 minutos (primeira vez)
+  3. OUTPUT\GABRIELRJ6_TOOLBOX_v7.exe
+
+CRIAR INSTALADOR (opcional)
+────────────────────────────
+  1. Baixe Inno Setup: https://jrsoftware.org/isdl.php
+  2. Abra installer.iss no Inno Setup Compiler
+  3. F9 para compilar
+
+──────────────────────────────────────────────────────────────
+  By GabrielRj6  |  REDSEC TOOLBOX v7.0  |  DedSec Edition
+──────────────────────────────────────────────────────────────

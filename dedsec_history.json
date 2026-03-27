@@ -1,0 +1,175 @@
+{
+    "03000200-0400-0500-0006-000700080009": {
+        "name": "GabrielRj6",
+        "first_seen": "27/03/2026 01:50:19",
+        "history": [
+            {
+                "date": "27/03/2026 01:50:19",
+                "action": "Coleta concluída!"
+            },
+            {
+                "date": "27/03/2026 01:50:26",
+                "action": "Concluído!"
+            },
+            {
+                "date": "27/03/2026 01:50:42",
+                "action": "Concluído!"
+            },
+            {
+                "date": "27/03/2026 01:51:00",
+                "action": "Concluído!"
+            },
+            {
+                "date": "27/03/2026 01:51:47",
+                "action": "Notas técnicas atualizadas"
+            },
+            {
+                "date": "27/03/2026 01:52:51",
+                "action": "OK"
+            },
+            {
+                "date": "27/03/2026 02:05:39",
+                "action": "Bloco de notas do dossier atualizado"
+            },
+            {
+                "date": "27/03/2026 02:06:44",
+                "action": "Bloco de notas do dossier atualizado"
+            },
+            {
+                "date": "27/03/2026 02:11:12",
+                "action": "Nota técnica editada no dossier: 03000200-0400-0500-0006-000700080009"
+            },
+            {
+                "date": "27/03/2026 02:15:30",
+                "action": "Nota técnica editada no dossier: 03000200-0400-0500-0006-000700080009"
+            },
+            {
+                "date": "27/03/2026 02:24:38",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:24:53",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:25:30",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:28:22",
+                "action": "OK"
+            },
+            {
+                "date": "27/03/2026 02:28:48",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:28:58",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:29:07",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:54:06",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:54:17",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:54:20",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:54:23",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 02:54:25",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 12:18:45",
+                "action": "Nota adicionada ao dossier"
+            },
+            {
+                "date": "27/03/2026 12:27:06",
+                "action": "Executou: 7-Zip"
+            },
+            {
+                "date": "27/03/2026 12:27:16",
+                "action": "7-Zip instalado com sucesso!"
+            },
+            {
+                "date": "27/03/2026 15:37:20",
+                "action": "Executou: Listar todos os Drivers instalados"
+            },
+            {
+                "date": "27/03/2026 15:37:20",
+                "action": "Concluído!"
+            }
+        ],
+        "notes": [
+            {
+                "date": "27/03/2026 02:24:05",
+                "info": "notas de mudanças"
+            },
+            {
+                "date": "27/03/2026 02:24:38",
+                "info": "TESTE EM PERSITENCIA DE NOTAS"
+            },
+            {
+                "date": "27/03/2026 02:24:53",
+                "info": "TESTE DE HISTORICO"
+            },
+            {
+                "date": "27/03/2026 02:25:30",
+                "info": "TESTE"
+            },
+            {
+                "date": "27/03/2026 02:28:48",
+                "info": "testes"
+            },
+            {
+                "date": "27/03/2026 02:28:58",
+                "info": "ALO"
+            },
+            {
+                "date": "27/03/2026 02:29:07",
+                "info": "SAINDO"
+            },
+            {
+                "date": "27/03/2026 02:54:06",
+                "info": "testes"
+            },
+            {
+                "date": "27/03/2026 02:54:17",
+                "info": "l"
+            },
+            {
+                "date": "27/03/2026 02:54:20",
+                "info": "lk"
+            },
+            {
+                "date": "27/03/2026 02:54:23",
+                "info": "hdghghgf"
+            },
+            {
+                "date": "27/03/2026 02:54:25",
+                "info": "gregregregre"
+            },
+            {
+                "date": "27/03/2026 12:18:45",
+                "info": "TESTES"
+            }
+        ],
+        "ip": "192.168.3.80",
+        "hostname": "WIN-JBCOU6K9RB6",
+        "os": "Windows 11",
+        "cpu": "AMD Ryzen 5 5600GT with Radeon Graphics",
+        "ram": "16 GB"
+    }
+}
