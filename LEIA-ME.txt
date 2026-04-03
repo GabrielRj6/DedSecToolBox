@@ -1,38 +1,34 @@
 ╔══════════════════════════════════════════════════════════════╗
-║       REDSEC TOOLBOX v7.2 — GUIA COMPLETO                    ║
+║       DEDSEC TOOLBOX v10.0 GOLD — GUIA FINAL                 ║
 ╚══════════════════════════════════════════════════════════════╝
 
-NOVIDADES v7.2
+NOVIDADES v10.0 GOLD (ESTÁVEL)
 ──────────────
-  ★ Visualizador de Senhas Wi-Fi: Recupera SSIDs e senhas salvas no PC.
-  ★ IP Tracker & Whois PRO: Rastreamento mais preciso com geolocalização.
-  ★ Speedtest Robusto: Correção de bugs no teste de velocidade.
-  ★ Código Otimizado: Removidos blocos fantasmas e bugs de indentação.
-  ★ Admin Auto-Elevation: O script agora solicita admin automaticamente.
+  ★ AUTO-UPDATER PRO: O sistema agora se atualiza sozinho via GitHub!
+  ★ MEUS SCRIPTS CUSTOM: Pasta 'meus_scripts' para scripts dinâmicos (.bat, .ps1, .exe).
+  ★ CENTRAL DE DOSSIÊS: Agora com exportação de relatórios .txt para a Desktop.
+  ★ DIAGNÓSTICO 1-CLICK: Limpeza, SFC e DISM automáticos em um único botão.
+  ★ PONTO DE RESTAURAÇÃO: Criar pontos de segurança antes de manutenções.
+  ★ VISUAL DYNAMICO: Header e Clock com redimensionamento inteligente.
+  ★ BRANDING DEDSEC: Toda a interface padronizada com estética Hacker/Watch Dogs.
 
-COMO USAR O TERMINAL EXPANSÍVEL
-────────────────────────────────
-  • Ao clicar qualquer botão de ação, o terminal expande sozinho
-    e os botões de opções somem para dar espaço ao output.
-  • Para voltar aos botões: clique "▼ MOSTRAR BOTÕES".
-  • Para ver o terminal sem executar nada: clique "▲ OCULTAR TERMINAL".
-
-TESTAR
-──────
-  python toolbox.py
-
-COMPILAR PARA .EXE
+ESTRUTURA DE PASTAS
 ──────────────────
-  1. Duplo clique em BUILD.bat
-  2. Aguarde 3-5 minutos (primeira vez)
-  3. OUTPUT\GABRIELRJ6_TOOLBOX_v7.exe
+  • Distribuível: OUTPUT\DEDSEC_TOOLBOX_v10.exe
+  • Plugins: Coloque seus .bat / .ps1 na pasta 'meus_scripts' (mesma pasta do exe).
+  • Dossiês: Histórico salvo em 'dedsec_history.json'.
 
-CRIAR INSTALADOR (opcional)
+COMO COMPILAR (DESENVOLVEMDOR)
 ────────────────────────────
-  1. Baixe Inno Setup: https://jrsoftware.org/isdl.php
-  2. Abra installer.iss no Inno Setup Compiler
-  3. F9 para compilar
+  1. No CMD, execute: BUILD.bat
+  2. O PyInstaller gerará a versão final em: OUTPUT\DEDSEC_TOOLBOX_v10.exe
+  3. Toda a limpeza de resíduos é feita automaticamente.
+
+INFORMAÇÕES DE UPDATE
+────────────────────
+  • Para que o Auto-Updater funcione, você deve subir o novo .exe como uma RELEASE no GitHub.
+  • Tag Name da Release deve bater com a versao (ex: v10.0).
 
 ──────────────────────────────────────────────────────────────
-  By GabrielRj6  |  REDSEC TOOLBOX v7.0  |  DedSec Edition
+  By GabrielRj6 e Antigravity  |  DEDSEC TOOLBOX v10.0 GOLD
 ──────────────────────────────────────────────────────────────

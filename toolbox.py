@@ -20,32 +20,50 @@ import json
 import datetime
 import urllib.request
 import tempfile
-import shutil
 
 # ── Versão do App ──
-APP_VERSION = "9.5"
-GITHUB_REPO = "GabrielRj6/dedsec-toolbox"
+APP_VERSION = "10.1"
+GITHUB_REPO = "GabrielRj6/DedSecToolBox"
 UPDATE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+
+# ── Status de Administrador ──
+try:
+    IS_ADMIN = ctypes.windll.shell32.IsUserAnAdmin() != 0
+except Exception:
+    IS_ADMIN = False
 
 # ── Auto-Updater ──
 class UpdateChecker:
     @staticmethod
-    def check(silent=False):
+    def check():
         try:
             req = urllib.request.Request(UPDATE_URL, headers={"User-Agent": "DEDSEC-TOOLBOX"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode())
-                latest = data.get("tag_name", "").replace("v", "").strip()
-                if latest and latest != APP_VERSION:
-                    assets = data.get("assets", [])
-                    download_url = None
-                    for asset in assets:
-                        if asset.get("name", "").endswith(".exe"):
-                            download_url = asset.get("browser_download_url")
-                            break
-                    if download_url:
-                        return latest, download_url
-                    return latest, None
+                raw_tag = data.get("tag_name", "").strip()
+                # Limpa 'v' ou 'V' do início
+                latest = raw_tag.lower().replace("v", "").strip()
+                current = APP_VERSION.lower().replace("v", "").strip()
+                
+                # Só notifica se a versão do GitHub for DIFERENTE e possivelmente MAIOR (comparação simples de string/float)
+                if latest and latest != current:
+                    try:
+                        # Tenta comparar como número para evitar avisar de versões antigas
+                        if float(latest) > float(current):
+                            assets = data.get("assets", [])
+                            download_url = None
+                            for asset in assets:
+                                if asset.get("name", "").endswith(".exe"):
+                                    download_url = asset.get("browser_download_url")
+                                    break
+                            if download_url:
+                                return raw_tag, download_url
+                    except:
+                        # Se não for número (ex: 10.0.1), volta pra comparação de texto
+                        if latest != current:
+                             # (Lógica extra: você pode decidir se quer que apareça sempre que for diferente ou só maior)
+                             pass 
+                return None, None
         except Exception:
             pass
         return None, None
@@ -59,9 +77,32 @@ class UpdateChecker:
             urllib.request.urlretrieve(url, exe_path)
             batch_path = os.path.join(tmp_dir, "update.bat")
             exe_current = sys.executable
+            
+            # Script BAT à prova de balas: tenta deletar o executável atual até o Windows destravar (quando fechar de vez)
             with open(batch_path, "w") as f:
-                f.write(f'@echo off\ntimeout /t 2 /nobreak >nul\ncopy /Y "{exe_path}" "{exe_current}"\ndel "{exe_path}"\nstart "" "{exe_current}"\nrmdir "{tmp_dir}" 2>nul\ndel "%~f0"')
-            subprocess.Popen(batch_path, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                f.write(f'''@echo off
+set _MEIPASS2=
+set _MEIPASS=
+set _PYI_APPLICATION_HOME_DIR=
+set _PYI_ARCHIVE_FILE=
+set _PYI_PARENT_PROCESS_LEVEL=
+:loop
+del "{exe_current}" 2>nul
+if exist "{exe_current}" (
+    timeout /t 1 /nobreak >nul
+    goto loop
+)
+copy /Y "{exe_path}" "{exe_current}"
+del "{exe_path}"
+start "" "{exe_current}"
+del "%~f0"
+''')
+            # Também limpamos a env local pra não herdar pro Popen
+            clean_env = os.environ.copy()
+            for k in list(clean_env.keys()):
+                if k.startswith('_MEI') or k.startswith('_PYI'):
+                    clean_env.pop(k, None)
+            subprocess.Popen(batch_path, shell=True, env=clean_env, creationflags=subprocess.CREATE_NO_WINDOW)
             return True
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao baixar atualização:\n{e}")
@@ -549,7 +590,7 @@ class SplashScreen(tk.Toplevel):
                 self.after(80, self._animate)
             else:
                 self.canvas.itemconfig(self._txt_title, text=title)
-                self.canvas.itemconfig(self._txt_sub, text="v8.0  //  by GabrielRj6")
+                self.canvas.itemconfig(self._txt_sub, text=f"v{APP_VERSION}  //  by GabrielRj6")
                 self._phase = 1
                 self.after(200, self._animate)
         elif self._phase == 1:
@@ -589,6 +630,13 @@ def run_cmd(cmd, output_widget=None, success_msg="Concluído!"):
                 text=True, encoding="utf-8", errors="replace",
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
+
+            # --- Alerta de Permissão se necessário ---
+            if not IS_ADMIN:
+                if any(x in cmd.lower() for x in ["net stop", "net start", "sfc", "dism", "reg add", "netsh", "powershell"]):
+                    if output_widget:
+                        output_widget.insert("end", "[!] AVISO: Este comando pode exigir PRIVILÉGIOS DE ADMINISTRADOR.\n", "warn")
+                        output_widget.see("end")
             for line in proc.stdout:
                 if output_widget:
                     output_widget.insert("end", line)
@@ -1352,6 +1400,32 @@ class CleanPanel(BasePanel):
         self.add_button(7, "Logs de Eventos",      self._clear_logs)
         self.add_button(8, "Cache Windows Update", lambda: run_cmd('del /q /s /f "C:\\Windows\\SoftwareDistribution\\Download\\*"', t))
 
+        self.add_section_label("INTEGRAÇÃO COM WINDOWS")
+        self.add_button(9, "Adicionar 'Exterminar' no Botão Direito", self._add_context_menu, CYAN_NEON)
+        self.add_button(10, "Remover 'Exterminar' no Botão Direito", self._remove_context_menu, ORANGE_NEON)
+
+    def _add_context_menu(self):
+        exe = sys.executable
+        if getattr(sys, 'frozen', False):
+            cmd_action = f'"{exe}" --context-delete \\"%1\\"'
+        else:
+            cmd_action = f'"{exe}" "{os.path.abspath(__file__)}" --context-delete \\"%1\\"'
+        
+        cmd = (
+            f'reg add "HKCR\\*\\shell\\DedSecExterminar" /ve /t REG_SZ /d "Aniquilar Forçado (DedSec)" /f & '
+            f'reg add "HKCR\\*\\shell\\DedSecExterminar\\command" /ve /t REG_SZ /d "{cmd_action}" /f & '
+            f'reg add "HKCR\\Directory\\shell\\DedSecExterminar" /ve /t REG_SZ /d "Aniquilar Forçado (DedSec)" /f & '
+            f'reg add "HKCR\\Directory\\shell\\DedSecExterminar\\command" /ve /t REG_SZ /d "{cmd_action}" /f'
+        )
+        run_cmd(cmd, self.terminal, "Menu de contexto instalado (Aniquilar Forçado)!")
+
+    def _remove_context_menu(self):
+        cmd = (
+            'reg delete "HKCR\\*\\shell\\DedSecExterminar" /f & '
+            'reg delete "HKCR\\Directory\\shell\\DedSecExterminar" /f'
+        )
+        run_cmd(cmd, self.terminal, "Menu de contexto removido!")
+
     def _full_clean(self):
         cmd = (
             'del /q /s /f "%temp%\\*" 2>nul & rd /s /q "%temp%" 2>nul & mkdir "%temp%" & '
@@ -1622,6 +1696,67 @@ Write-Host ''
 # ════════════════════════════════════════════════════════
 #  NOVO — BACKUP RÁPIDO
 # ════════════════════════════════════════════════════════
+class CustomScriptsPanel(BasePanel):
+    """Painel para executar scripts de terceiros de forma rápida."""
+    def __init__(self, master, **kwargs):
+        super().__init__(master, "MEUS SCRIPTS (DYNAMIC)", **kwargs)
+        self.scripts_path = os.path.join(os.getcwd(), "meus_scripts")
+        if not os.path.exists(self.scripts_path):
+            os.makedirs(self.scripts_path)
+            
+        desc = (
+            "Coloque seus arquivos (.bat, .ps1, .vbs, .exe, .py) na pasta 'meus_scripts'.\n"
+            "O sistema fará o auto-scan e permitirá executá-los com 1-clique."
+        )
+        ctk.CTkLabel(self, text=desc, font=("Courier New", 12), text_color=GRAY_DIM).pack(pady=10)
+        
+        # Area de lista
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color=BG_PANEL, border_color=GRAY_DIM, border_width=1)
+        self.scroll.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        self.refresh_btn = DedSecButton(self, text="◈ ATUALIZAR LISTA", command=self.refresh)
+        self.refresh_btn.pack(pady=10)
+        
+        self.refresh()
+
+    def refresh(self):
+        for widget in self.scroll.winfo_children():
+            widget.destroy()
+            
+        try:
+            files = [f for f in os.listdir(self.scripts_path) if f.lower().endswith(('.bat', '.ps1', '.vbs', '.exe', '.py'))]
+        except:
+            files = []
+
+        if not files:
+            ctk.CTkLabel(self.scroll, text="─ NENHUM SCRIPT ENCONTRADO ─", font=("Courier New", 14), text_color=RED_NEON).pack(pady=40)
+            return
+            
+        for f in files:
+            frame = ctk.CTkFrame(self.scroll, fg_color=BG_DARK, border_color="#333", border_width=1)
+            frame.pack(fill="x", pady=4, padx=5)
+            
+            ctk.CTkLabel(frame, text=f"◈ {f}", font=("Courier New", 13, "bold"), text_color=CYAN_NEON).pack(side="left", padx=15, pady=8)
+            
+            run_btn = ctk.CTkButton(frame, text="EXECUTAR", width=100, height=28, 
+                                    fg_color="transparent", border_color=GREEN_NEON, border_width=1,
+                                    text_color=GREEN_NEON, hover_color="#002200",
+                                    command=lambda name=f: self.run_script(name))
+            run_btn.pack(side="right", padx=15)
+
+    def run_script(self, filename):
+        full_path = os.path.normpath(os.path.join(self.scripts_path, filename))
+        try:
+            if filename.lower().endswith('.ps1'):
+                subprocess.Popen(['powershell', '-ExecutionPolicy', 'Bypass', '-File', full_path], shell=True)
+            else:
+                os.startfile(full_path)
+            # Log no Dossiê
+            HistoryManager.add_note(f"Executou script customizado: {filename}")
+            messagebox.showinfo("DEDSEC", f"Iniciando: {filename}")
+        except Exception as e:
+            messagebox.showerror("ERRO", f"Falha ao executar:\n{e}")
+
 class BackupPanel(BasePanel):
     def __init__(self, master):
         super().__init__(master, "BACKUP", GREEN_NEON)
@@ -2239,6 +2374,9 @@ class DebloaterPanel(BasePanel):
         self.add_button(6, "Desativar Hibernação (Economiza espaço)", lambda: run_cmd("powercfg -h off", t, "Hibernação desativada!"))
         self.add_button(7, "Ajustar para Melhor Performance", self._best_perf)
 
+        self.add_section_label("NAVEGADORES NATIVOS")
+        self.add_button(8, "Exterminar Microsoft Edge ☠", self._remove_edge, RED_NEON)
+
     def _disable_telemetry(self):
         cmd = (
             'reg add "HKLM\\Software\\Policies\\Microsoft\\Windows\\DataCollection" /v AllowTelemetry /t REG_DWORD /d 0 /f & '
@@ -2268,6 +2406,57 @@ class DebloaterPanel(BasePanel):
     def _best_perf(self):
         cmd = 'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects" /v VisualFXSetting /t REG_DWORD /d 2 /f'
         run_cmd(cmd, self.terminal, "Ajustado para performance!")
+
+    def _remove_edge(self):
+        msg = "⚠ EXTERMÍNIO TOTAL E DEFINITIVO\n\nIsso removerá rastros, arquivos, serviços e entradas de inicialização (startup).\nDeseja mesmo prosseguir?"
+        if messagebox.askyesno("Exterminar Microsoft Edge", msg, icon="warning"):
+            cmd = (
+                # Matar processos
+                'taskkill /F /IM msedge.exe /T 2>nul & '
+                'taskkill /F /IM MicrosoftEdgeUpdate.exe /T 2>nul & '
+                'taskkill /F /IM msedgewebview2.exe /T 2>nul & '
+                # Parar e DELETAR Serviços
+                'sc stop edgeupdate 2>nul & sc delete edgeupdate 2>nul & '
+                'sc stop edgeupdatem 2>nul & sc delete edgeupdatem 2>nul & '
+                'sc stop MicrosoftEdgeElevationService 2>nul & sc delete MicrosoftEdgeElevationService start= disabled 2>nul & '
+                # Tentar desinstalar via setup
+                'for /d %i in ("C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\*") do (if exist "%i\\Installer\\setup.exe" "%i\\Installer\\setup.exe" --uninstall --system-level --force-uninstall) & '
+                # Limpeza Bruta de Startup e Ghost Entries
+                'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MicrosoftEdgeAutoLaunch" /f 2>nul & '
+                'reg delete "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "MicrosoftEdgeAutoLaunch" /f 2>nul & '
+                'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "msedge" /f 2>nul & '
+                'reg delete "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "msedge" /f 2>nul & '
+                'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run" /v "MicrosoftEdgeAutoLaunch" /f 2>nul & '
+                'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run" /v "msedge" /f 2>nul & '
+                # Remover Active Setup (impede volta em novos logins)
+                'reg delete "HKLM\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\{9459C573-5bcc-4c2b-99d7-d860ba3f60f6}" /f 2>nul & '
+                # Remover tarefas agendadas
+                'schtasks /delete /tn "MicrosoftEdgeUpdateTaskMachineCore" /f 2>nul & '
+                'schtasks /delete /tn "MicrosoftEdgeUpdateTaskMachineUA" /f 2>nul & '
+                'schtasks /delete /tn "MicrosoftEdgeUpdateBrowserReplacementService" /f 2>nul & '
+                # Bloquear no Registro para sempre
+                'reg add "HKLM\\SOFTWARE\\Microsoft\\EdgeUpdate" /v DoNotUpdateToEdgeWithChromium /t REG_DWORD /d 1 /f & '
+                'reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\EdgeUpdate" /v InstallDefault /t REG_DWORD /d 0 /f & '
+                # Forçar POSSE e DELETAR pastas (Microsoft Edge, EdgeUpdate, EdgeCore)
+                'takeown /f "C:\\Program Files (x86)\\Microsoft\\Edge" /r /d y 2>nul & icacls "C:\\Program Files (x86)\\Microsoft\\Edge" /grant everyone:F /t /q 2>nul & rd /s /q "C:\\Program Files (x86)\\Microsoft\\Edge" 2>nul & '
+                'takeown /f "C:\\Program Files (x86)\\Microsoft\\EdgeUpdate" /r /d y 2>nul & icacls "C:\\Program Files (x86)\\Microsoft\\EdgeUpdate" /grant everyone:F /t /q 2>nul & rd /s /q "C:\\Program Files (x86)\\Microsoft\\EdgeUpdate" 2>nul & '
+                'takeown /f "C:\\Program Files (x86)\\Microsoft\\EdgeCore" /r /d y 2>nul & icacls "C:\\Program Files (x86)\\Microsoft\\EdgeCore" /grant everyone:F /t /q 2>nul & rd /s /q "C:\\Program Files (x86)\\Microsoft\\EdgeCore" 2>nul & '
+                'takeown /f "C:\\Program Files\\Microsoft\\Edge" /r /d y 2>nul & icacls "C:\\Program Files\\Microsoft\\Edge" /grant everyone:F /t /q 2>nul & rd /s /q "C:\\Program Files\\Microsoft\\Edge" 2>nul & '
+                'rd /s /q "%LOCALAPPDATA%\\Microsoft\\Edge" 2>nul & '
+                # Remover do Menu 'Aplicativos Instalados' (Painel de Controle / Configurações)
+                'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge" /f 2>nul & '
+                'reg delete "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge" /f 2>nul & '
+                'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge Update" /f 2>nul & '
+                'reg delete "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge Update" /f 2>nul & '
+                'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge" /f 2>nul & '
+                'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge Update" /f 2>nul & '
+                # Tentar remover como pacote Appx por via das dúvidas
+                'powershell -NoProfile -Command "Get-AppxPackage *MicrosoftEdge* | Remove-AppxPackage -ErrorAction SilentlyContinue" 2>nul & '
+                # Atalhos finais
+                'del /q /f "%PUBLIC%\\Desktop\\Microsoft Edge.lnk" 2>nul & '
+                'del /q /f "%USERPROFILE%\\Desktop\\Microsoft Edge.lnk" 2>nul'
+            )
+            run_cmd(cmd, self.terminal, "Microsoft Edge EXTERMINADO COMPLETAMENTE!")
 
 
 # ════════════════════════════════════════════════════════
@@ -2440,6 +2629,7 @@ class App(ctk.CTk):
         ("M",  "HARDWARE MONITOR",   MonitorPanel,     GREEN_NEON),
         ("D",  "DRIVER CENTRAL",     DriverPanel,      YELLOW_NEON),
         ("K",  "KALI LINUX TOOLS",   KaliPanel,        RED_NEON),
+        ("S",  "MEUS SCRIPTS ★",     CustomScriptsPanel, YELLOW_NEON),
         ("99", "KIT PC NOVO ★",      KitPanel,         GREEN_NEON),
     ]
 
@@ -2475,6 +2665,26 @@ class App(ctk.CTk):
         # Screensaver: olho após 5 min de inatividade
         eye_path = self._find_eye_gif()
         self._screensaver = ScreenSaver(self, eye_path)
+
+        # ── Update Check ao Iniciar a App ──
+        self.after(3000, self._check_updates_bg)
+
+    def _check_updates_bg(self):
+        """Verifica atualizações em background 3 segundos após abrir o programa principal"""
+        def _bg():
+            latest, url = UpdateChecker.check()
+            if latest and url:
+                self.after(0, lambda: self._prompt_update(latest, url))
+        threading.Thread(target=_bg, daemon=True).start()
+
+    def _prompt_update(self, version, url):
+        # Garante que a janela de prompt fica na frente
+        self.attributes("-topmost", True)
+        if messagebox.askyesno("Atualização Disponível", f"A versão v{version} foi encontrada no GitHub!\n\nDeseja realizar o download e atualizar agora?", parent=self):
+            UpdateChecker.download_and_install(url, version)
+            self.destroy()
+            sys.exit()
+        self.attributes("-topmost", False)
 
     @staticmethod
     def _find_eye_gif():
@@ -2632,6 +2842,14 @@ class App(ctk.CTk):
             fill="#00b32c",
             tags="htext"
         )
+
+        # Badge de Administrador
+        if IS_ADMIN:
+            self._header_canvas.create_rectangle(20, 105, 160, 125, fill="#00ff41", outline="#00ff41", tags="htext")
+            self._header_canvas.create_text(90, 115, text="ROOT / ADMIN ACCESS", font=("Courier New", 9, "bold"), fill="#000000", tags="htext")
+        else:
+            self._header_canvas.create_rectangle(20, 105, 160, 125, fill="#ff5252", outline="#ff5252", tags="htext")
+            self._header_canvas.create_text(90, 115, text="USER MODE / DENIED", font=("Courier New", 9, "bold"), fill="#ffffff", tags="htext")
 
         # Info do sistema (canto direito) — posição Y distribuída no header
         self._info_ids = {}
@@ -2905,35 +3123,63 @@ class App(ctk.CTk):
 #  ENTRY POINT
 # ─────────────────────────────────────────────
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--context-delete":
+        target = sys.argv[2] if len(sys.argv) > 2 else ""
+        if target and os.path.exists(target):
+            if sys.platform == "win32":
+                try: is_admin = ctypes.windll.shell32.IsUserAnAdmin()
+                except Exception: is_admin = False
+                if not is_admin:
+                    args_str = " ".join([f'"{a}"' if ' ' in a else a for a in sys.argv[1:]])
+                    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, args_str, None, 1)
+                    sys.exit()
+            
+            if os.path.isfile(target):
+                cmd = f'takeown /f "{target}" /a & icacls "{target}" /grant administrators:F /c /l /q & del /f /q /a "{target}"'
+            else:
+                cmd = f'takeown /f "{target}" /a /r /d y & icacls "{target}" /grant administrators:F /t /c /l /q & rd /s /q "{target}"'
+            
+            subprocess.run(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            
+            root = tk.Tk()
+            root.withdraw()
+            if not os.path.exists(target):
+                messagebox.showinfo("DEDSEC", f"Alvo ANIQUILADO com sucesso:\n\n{target}", master=root)
+            else:
+                messagebox.showwarning("DEDSEC", f"Falha ao apagar alvo (pode estar em uso):\n\n{target}", master=root)
+            root.destroy()
+        sys.exit(0)
+
     global USER_NAME
 
-    if sys.platform == "win32":
-        try: is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-        except Exception: is_admin = False
-        if not is_admin:
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
-            sys.exit()
+    if sys.platform == "win32" and not IS_ADMIN:
+        try:
+            # Determina o executável e os argumentos corretamente
+            if getattr(sys, 'frozen', False):
+                # Rodando como executável compilado (.exe)
+                prog = sys.executable
+                args = " ".join([f'"{a}"' for a in sys.argv[1:]])
+            else:
+                # Rodando como script (.py)
+                prog = sys.executable
+                # Garante caminho absoluto para o script
+                script = os.path.abspath(sys.argv[0])
+                args = f'"{script}" ' + " ".join([f'"{a}"' for a in sys.argv[1:]])
+            
+            # ShellExecuteW com 'runas' solicita elevação ao Windows
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", prog, args, None, 1)
+            sys.exit(0)
+        except Exception as e:
+            # Se o usuário recusar o UAC ou der erro catastrófico
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("ERRO DE ELEVAÇÃO", 
+                f"O Toolbox precisa de privilégios de Administrador para funcionar corretamente.\n\nErro: {e}", 
+                master=root)
+            sys.exit(1)
 
     root = ctk.CTk()
     root.withdraw()
-
-    def check_for_updates_async():
-        def _check():
-            latest, url = UpdateChecker.check(silent=False)
-            if latest and url:
-                root.after(0, lambda: _notify_update(latest, url))
-            else:
-                root.after(0, lambda: messagebox.showinfo("Update", f"Versao atual: {APP_VERSION}\nNenhuma atualizacao disponivel."))
-        threading.Thread(target=_check, daemon=True).start()
-
-    def _notify_update(version, url):
-        if messagebox.askyesno("Atualização Disponível",
-            f"Nova versão {version} disponível!\n\nDeseja baixar agora?"):
-            UpdateChecker.download_and_install(url, version)
-            root.destroy()
-            sys.exit()
-
-    check_for_updates_async()
 
     def launch_splash(name):
         """Depois do nome confirmado, roda splash e abre App."""

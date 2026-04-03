@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller
+build/
+dist/
+temp_build/
+*.spec
+
+# Dados do Usuário e Configurações (Não devem ser públicos!)
+dedsec_history.json
+user.cfg
+
+# Pasta de saída do executável
+OUTPUT/
+
+# Meus Scripts (Arquivos de texto/bat locais)
+meus_scripts/
+
+# Outros
+.idea/
+.vscode/
+*.exe
+*.ico
+!assets/icon.ico
