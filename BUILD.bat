@@ -43,10 +43,10 @@ if not exist "assets\icon.ico" (
 
 :: ── 5. Compilar com PyInstaller ───
 echo.
-echo [*] Compilando DEDSEC_TOOLBOX_v10.exe (aguarde)...
+echo [*] Compilando DEDSEC_TOOLBOX_v10.1.exe (aguarde)...
 echo.
 
-python -m PyInstaller --onefile --windowed --name "DEDSEC_TOOLBOX_v10" --icon "assets\icon.ico" --add-data "assets;assets" --hidden-import customtkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import PIL.ImageEnhance --uac-admin --clean --distpath "OUTPUT" --workpath "temp_build" toolbox.py
+python -m PyInstaller --onefile --windowed --name "DEDSEC_TOOLBOX_v10.1" --icon "assets\icon.ico" --add-data "assets;assets" --hidden-import customtkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import PIL.ImageEnhance --uac-admin --clean --distpath "OUTPUT" --workpath "temp_build" toolbox.py
 
 if errorlevel 1 (
     echo.
