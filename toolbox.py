@@ -22,7 +22,7 @@ import urllib.request
 import tempfile
 
 # ── Versão do App ──
-APP_VERSION = "10.1"
+APP_VERSION = "10.2"
 GITHUB_REPO = "GabrielRj6/DedSecToolBox"
 UPDATE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
