@@ -476,7 +476,7 @@ class SplashScreen(tk.Toplevel):
         y = (sh - h) // 2
         self.geometry(f"{w}x{h}+{x}+{y}")
 
-        self.canvas = tk.Canvas(self, width=w, height=h, bg="#000000", highlightthickness=0)
+        self.canvas = tk.Canvas(self, width=w, height=h, bg="#000000", highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True)
 
         self._w, self._h = w, h
@@ -508,15 +508,24 @@ class SplashScreen(tk.Toplevel):
             p2 = asset(name)
             if os.path.exists(p2):
                 try:
-                    img2 = Image.open(p2).convert("RGB")
-                    img2 = img2.resize((460, 300), Image.LANCZOS)
-                    r, g, b = img2.split()
-                    img2 = Image.merge("RGB", (
-                        r.point(lambda x: int(x * 0.1)),
-                        g.point(lambda x: min(255, int(x * 1.4))),
-                        b.point(lambda x: int(x * 0.1))
+                    # Carrega em escala de cinzas para criar a máscara perfeita
+                    img_src = Image.open(p2).convert("L")
+                    img_src = img_src.crop((10, 10, img_src.width-10, img_src.height-10))
+                    img_src = img_src.resize((460, 300), Image.LANCZOS)
+                    
+                    # Máscara de transparência: o que é preto na imagem vira transparente no Canvas
+                    # Isso permite que a chuva Matrix passe POR TRÁS do desenho sem sumir
+                    mask = img_src.point(lambda x: 255 if x > 110 else 0)
+                    
+                    # Cria a imagem RGBA (Verde DedSec + Canal Alpha da máscara)
+                    final_rgba = Image.merge("RGBA", (
+                        img_src.point(lambda x: 0),                         # R
+                        img_src.point(lambda x: min(255, int(x * 2.2))),    # G
+                        img_src.point(lambda x: 0),                         # B
+                        mask                                                # A (Alpha)
                     ))
-                    self._world_img = img2
+                    
+                    self._world_img = final_rgba
                     break
                 except Exception:
                     pass
@@ -533,8 +542,8 @@ class SplashScreen(tk.Toplevel):
         self._txt_bar   = self.canvas.create_text(w//2, 438, text="", font=("Courier New", 10), fill="#004d22", anchor="center")
         self._txt_pct   = self.canvas.create_text(w//2, 462, text="", font=("Courier New", 10), fill="#00e676", anchor="center")
 
-        for y_s in range(0, h, 4):
-            self.canvas.create_line(0, y_s, w, y_s, fill="#000800", width=1, tags="scanlines")
+        # Scanlines removidas para evitar "névoa" de cor sobre o preto absoluto
+        pass
 
         self._show_world_img()
         self.after(50, self._animate)
@@ -555,14 +564,14 @@ class SplashScreen(tk.Toplevel):
                 ty = col["y"] - t * 14
                 if 0 <= ty <= self._h:
                     char_idx = min(t, len(col["chars"]) - 1)
-                    shade = 20 + int(70 * (1 - t / trail_len))
-                    color = f"#00{shade:02x}10"
+                    shade = 40 + int(120 * (1 - t / trail_len))
+                    color = f"#00{shade:02x}20"
                     self.canvas.create_text(col["x"], ty, text=col["chars"][char_idx],
                                             font=("Courier New", 9), fill=color, tags="matrix")
             hy = col["y"]
             if 0 <= hy <= self._h:
                 self.canvas.create_text(col["x"], hy, text=random.choice(self._matrix_char_pool),
-                                        font=("Courier New", 9, "bold"), fill="#aaffaa", tags="matrix")
+                                        font=("Courier New", 9, "bold"), fill="#ccffcc", tags="matrix")
         self.canvas.tag_lower("matrix")
         self.canvas.tag_lower("scanlines")
         self.after(60, self._draw_matrix)
@@ -1322,7 +1331,7 @@ class SecurityPanel(BasePanel):
         self.add_button(6, "✗ DESATIVAR Firewall ⚠",    self._disable_fw, RED_NEON)
         self.add_button(7, "Ver Regras do Firewall",     lambda: run_cmd("netsh advfirewall show allprofiles", t))
         self.add_section_label("DIAGNÓSTICO")
-        self.add_button(8,  "Programas na Inicialização", lambda: run_cmd("wmic startup list brief", t))
+        self.add_button(8,  "Programas na Inicialização", lambda: run_cmd('powershell -NoProfile -Command "Get-CimInstance Win32_StartupCommand | Format-Table Name,Command,Location -AutoSize"', t))
         self.add_button(9,  "Tarefas Agendadas",          lambda: run_cmd("schtasks /query /fo TABLE", t))
         self.add_button(10, "Processos em Execução",      lambda: run_cmd("tasklist /v", t))
         self.add_button(11, "Usuários e Grupos Locais",   lambda: run_cmd("net user & net localgroup", t))
@@ -1379,7 +1388,7 @@ class ActivationPanel(BasePanel):
         info.pack(fill="x", pady=(0, 8))
         self.add_button(1, "Ativar Windows / Office (MAS)", lambda: run_cmd('powershell -Command "irm https://get.activated.win | iex"', t))
         self.add_button(2, "Ver Status de Ativação",         lambda: run_cmd('cscript //nologo "%windir%\\system32\\slmgr.vbs" /xpr', t))
-        self.add_button(3, "Ver Versão do Windows",          lambda: run_cmd("winver", t))
+        self.add_button(3, "Ver Versão do Windows",          lambda: run_cmd('powershell -NoProfile -Command "(Get-CimInstance Win32_OperatingSystem) | Format-List Caption,Version,BuildNumber,OSArchitecture"', t, "Info de versão obtida!"))
 
 
 # ════════════════════════════════════════════════════════
@@ -1439,7 +1448,7 @@ class CleanPanel(BasePanel):
         run_cmd(cmd, self.terminal, "LIMPEZA PROFUNDA CONCLUÍDA!")
 
     def _clear_logs(self):
-        run_cmd('for /F "tokens=*" %G in (\'wevtutil.exe el\') do (wevtutil.exe cl "%G" 2>nul)', self.terminal, "Logs limpos!")
+        run_cmd('powershell -NoProfile -Command "Get-WinEvent -ListLog * -ErrorAction SilentlyContinue | ForEach-Object { try { [System.Diagnostics.Eventing.Reader.EventLogSession]::GlobalSession.ClearLog($_.LogName) } catch {} }; Write-Host \'Logs limpos.\'"', self.terminal, "Logs limpos!")
 
 
 # ════════════════════════════════════════════════════════
@@ -1505,7 +1514,7 @@ class KaliPanel(BasePanel):
         self.add_section_label("INFORMAÇÕES DO SISTEMA")
         self.add_button(11, "Processos em execução",                       lambda: run_cmd("tasklist /v", t))
         self.add_button(12, "Serviços do sistema",                         lambda: run_cmd("sc query type= all state= all", t))
-        self.add_button(13, "Patches instalados (KB)",                     lambda: run_cmd("wmic qfe list brief /format:table", t))
+        self.add_button(13, "Patches instalados (KB)",                     lambda: run_cmd('powershell -NoProfile -Command "Get-HotFix | Sort-Object InstalledOn -Descending -ErrorAction SilentlyContinue | Format-Table HotFixID,Description,InstalledOn -AutoSize"', t))
         self.add_button(14, "Usuários e grupos locais",                    lambda: run_cmd("net user & net localgroup", t))
         self.add_button(15, "Variáveis de ambiente",                       lambda: run_cmd("set", t))
 
@@ -1752,7 +1761,7 @@ class CustomScriptsPanel(BasePanel):
             else:
                 os.startfile(full_path)
             # Log no Dossiê
-            HistoryManager.add_note(f"Executou script customizado: {filename}")
+            HistoryManager.save_note(f"Executou script customizado: {filename}")
             messagebox.showinfo("DEDSEC", f"Iniciando: {filename}")
         except Exception as e:
             messagebox.showerror("ERRO", f"Falha ao executar:\n{e}")
@@ -1848,7 +1857,7 @@ class ProcessPanel(BasePanel):
         self.add_button(2,  "Top 20 processos (CPU)",       self._top_cpu)
         self.add_button(3,  "Todos os processos + PID",     lambda: run_cmd("tasklist /v /fo table", t))
         self.add_button(4,  "Processos de rede (porta)",    lambda: run_cmd("netstat -ano", t))
-        self.add_button(5,  "Inicialização automática",     lambda: run_cmd("wmic startup list brief", t))
+        self.add_button(5,  "Inicialização automática",     lambda: run_cmd('powershell -NoProfile -Command "Get-CimInstance Win32_StartupCommand | Format-Table Name,Command,Location -AutoSize"', t))
 
         self.add_section_label("ENCERRAR PROCESSO")
         self.add_button(6,  "Encerrar por NOME (digitar)",  self._kill_by_name)
@@ -2043,7 +2052,7 @@ class PrinterPanel(BasePanel):
 
     def _default_printer(self):
         run_cmd(
-            'powershell -NoProfile -Command "(Get-WmiObject -Query \'SELECT * FROM Win32_Printer WHERE Default=$true\').Name"',
+            'powershell -NoProfile -Command "(Get-CimInstance Win32_Printer | Where-Object {$_.Default -eq $true}).Name"',
             self.terminal, "OK"
         )
 
@@ -2106,18 +2115,18 @@ class DiskPanel(BasePanel):
         self.add_button(5,  "SMART — Status do disco (PowerShell)", self._smart_status)
         self.add_button(6,  "Verificar erros (CHKDSK /f /r)",       lambda: run_cmd("echo s | chkdsk C: /f /r", t))
         self.add_button(7,  "Desfragmentar C: (HDDs)",              lambda: run_cmd("defrag C: /U /V /X", t))
-        self.add_button(8,  "Otimizar C: (SSDs — TRIM)",            lambda: run_cmd("defrag C: /U /V /RetailDemo", t))
+        self.add_button(8,  "Otimizar C: (SSDs — TRIM)",            lambda: run_cmd("defrag C: /O /V", t, "Otimização SSD concluída!"))
         self.add_button(9,  "Instalar CrystalDiskInfo",             lambda: run_winget("CrystalDewWorld.CrystalDiskInfo","CrystalDiskInfo",t))
         self.add_button(10, "Instalar CrystalDiskMark",             lambda: run_winget("CrystalDewWorld.CrystalDiskMark","CrystalDiskMark",t))
 
         self.add_section_label("LIMPEZA DE DISCO")
-        self.add_button(11, "Analisar o que está ocupando espaço",  lambda: run_cmd("windirstat", t))
+        self.add_button(11, "Analisar o que está ocupando espaço",  lambda: run_cmd('powershell -NoProfile -Command "$p=Get-Command windirstat -ErrorAction SilentlyContinue; if($p){Start-Process windirstat}else{Write-Host \'[!] WinDirStat nao instalado. Use o botao 12 para instalar.\' -ForegroundColor Yellow}"', t))
         self.add_button(12, "Instalar WinDirStat",                  lambda: run_winget("WinDirStat.WinDirStat","WinDirStat",t))
         self.add_button(13, "Limpar arquivos temporários (temp)",   lambda: run_cmd('del /q /s /f "%temp%\\*" 2>nul', t, "Temp limpo!"))
         self.add_button(14, "Limpar cache de atualizações Windows", lambda: run_cmd('del /q /s /f "C:\\Windows\\SoftwareDistribution\\Download\\*" 2>nul', t, "Cache WU limpo!"))
 
         self.add_section_label("PARTIÇÕES E VOLUMES")
-        self.add_button(15, "Listar volumes e partições",           lambda: run_cmd("diskpart /s NUL & echo list disk | diskpart", t))
+        self.add_button(15, "Listar volumes e partições",           lambda: run_cmd('powershell -NoProfile -Command "Get-Disk | Format-Table Number,FriendlyName,@{N=\'Size(GB)\';E={[math]::Round($_.Size/1GB,2)}},PartitionStyle,HealthStatus -AutoSize; Get-Partition | Format-Table DiskNumber,PartitionNumber,DriveLetter,@{N=\'Size(GB)\';E={[math]::Round($_.Size/1GB,2)}},Type -AutoSize"', t, "OK"))
         self.add_button(16, "Informações de disco (fsutil)",        lambda: run_cmd('powershell -NoProfile -Command "Get-Disk | Format-Table Number,FriendlyName,Size,HealthStatus -AutoSize"', t))
         self.add_button(17, "Abrir Gerenciamento de Disco",         lambda: run_cmd("diskmgmt.msc", t))
 
@@ -2509,7 +2518,13 @@ class MonitorPanel(BasePanel):
             self.ram_bar.set(ram/100)
             self.after(2000, self._update_stats)
 
-        threading.Thread(target=lambda: _sync(_collect()), daemon=True).start()
+        def _thread():
+            res = _collect()
+            try:
+                self.after(0, lambda r=res: _sync(r))
+            except Exception:
+                pass
+        threading.Thread(target=_thread, daemon=True).start()
 
     def on_leave(self):
         self._active = False
@@ -2540,66 +2555,144 @@ class DriverPanel(BasePanel):
 #  PAINEL PRINCIPAL — DedSec skull → WE ARE COMING
 # ════════════════════════════════════════════════════════
 class PrincipalPanel(ctk.CTkFrame):
-    """Tela inicial: toca skull GIF uma vez (verde), depois WE ARE COMING até navegar."""
+    """Tela inicial: Terminal typewriter + GIF Animado."""
 
     def __init__(self, master):
-        super().__init__(master, fg_color=BG_DARK, corner_radius=0)
-        self._player1    = None
-        self._player2    = None
-        self._skull_path = self._find("dedsec_skull.gif", "download.gif", "skull.gif")
-        self._wac_path   = self._find("we_are_coming.gif", "download__2_.gif", "we_coming.gif")
-        self.after(80, self._start_skull)
+        super().__init__(master, fg_color="#000000", corner_radius=0)
+        self._running = True
+        self._gif_frames = []
+        self._base_frames = []
+        self._current_frame = 0
+        self._gif_id = None
+        self._is_ready = False
 
-    @staticmethod
-    def _find(*names):
-        for n in names:
-            p = asset(n)
-            if os.path.exists(p):
-                return p
-        return None
+        self.canvas = tk.Canvas(self, bg="#000000", highlightthickness=0)
+        self.canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.canvas.bind("<Configure>", self._on_resize)
 
-    def _start_skull(self):
-        """Fase 1: skull GIF — uma única vez, tintado de verde."""
-        self._clear()
-        if self._skull_path:
-            self._player1 = GifPlayer(
-                self, self._skull_path,
-                one_shot=True, on_done=self._start_wac,
-                tint=True, contain=False, bg=BG_DARK
-            )
-            self._player1.place(relx=0, rely=0, relwidth=1, relheight=1)
-            self.after(120, self._player1.start)
+        self.terminal_id = self.canvas.create_text(
+            20, 20, anchor="nw", text="",
+            font=("Courier New", 12, "bold"), fill=GREEN_NEON
+        )
+        self.breach_id = self.canvas.create_text(
+            0, 0, anchor="center", text="",
+            font=("Courier New", 14, "bold"), fill=GREEN_NEON
+        )
+
+        self.terminal_lines = [
+            "Initializing DEDSEC sub-routines...",
+            "Bypassing mainframe security protocols...",
+            "Scanning nodes... [OK]",
+            "Injecting payload... [██████████] 100%",
+            "Authentication logic overridden.",
+            "Root Access: GRANTED.",
+            f"Welcome back, {USER_NAME}.",
+            ""
+        ]
+        self.current_line = 0
+        self.current_char = 0
+        self.display_text = ""
+        self.after(300, self._typewriter)
+
+    # ── Typewriter & GIF Loading ───────────────────────────────
+    def _typewriter(self):
+        if not self._running: return
+        if self.current_line < len(self.terminal_lines):
+            line = self.terminal_lines[self.current_line]
+            if self.current_char < len(line):
+                self.display_text += line[self.current_char]
+                self.canvas.itemconfig(self.terminal_id, text=self.display_text + "█")
+                self.current_char += 1
+                self.after(random.randint(5, 20), self._typewriter)
+            else:
+                self.display_text += "\n"
+                self.current_line += 1
+                self.current_char = 0
+                self.after(150, self._typewriter)
         else:
-            self._start_wac()
+            self.canvas.itemconfig(self.terminal_id, text=self.display_text)
+            threading.Thread(target=self._load_gif_background, daemon=True).start()
 
-    def _start_wac(self):
-        """Fase 2: WE ARE COMING — fica em loop até usuário navegar."""
-        self._clear()
-        if self._wac_path:
-            self._player2 = GifPlayer(
-                self, self._wac_path,
-                one_shot=False, tint=False, contain=True, bg=BG_DARK
-            )
-            self._player2.place(relx=0, rely=0, relwidth=1, relheight=1)
-            self.after(120, self._player2.start)
-        else:
-            lbl = ctk.CTkLabel(
-                self, text="◈ DEDSEC TOOLBOX\n\nSelecione um módulo na sidebar.",
-                font=("Courier New", 18, "bold"),
-                text_color=GREEN_NEON, fg_color=BG_DARK
-            )
-            lbl.place(relx=0.5, rely=0.5, anchor="center")
+    def _load_gif_background(self):
+        try:
+            path = asset("157084787880c1ead98ec92332da7094 (1).gif")
+            if not os.path.exists(path):
+                return
+            
+            img = Image.open(path)
+            frames = []
+            try:
+                while True:
+                    frame = img.copy().convert("RGBA")
+                    frames.append(frame)
+                    img.seek(img.tell() + 1)
+            except EOFError:
+                pass
+            
+            self._base_frames = frames
+            self.after(0, self._on_gif_ready)
+        except Exception:
+            pass
 
-    def _clear(self):
-        for p in (self._player1, self._player2):
-            if p:
-                try: p.stop(); p.place_forget()
-                except: pass
-        self._player1 = self._player2 = None
+    def _on_gif_ready(self):
+        if not self._running: return
+        self._is_ready = True
+        self._place_gif()
+        self._animate_gif()
+
+    # ── Tela & Animação ───────────────────────────────────────
+    def _on_resize(self, event):
+        if self._is_ready:
+            self._place_gif()
+
+    def _place_gif(self):
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        if w < 100 or h < 100 or not self._base_frames:
+            return
+
+        cx, cy = w // 2, h // 2
+        first_frame = self._base_frames[0]
+        
+        max_h = int(h * 0.65)
+        ratio = min(max_h / first_frame.height, 1.0)
+        new_w = int(first_frame.width * ratio)
+        new_h = int(first_frame.height * ratio)
+
+        self._gif_frames = []
+        for bg_frame in self._base_frames:
+            resized = bg_frame.resize((new_w, new_h), Image.LANCZOS)
+            final = Image.new("RGBA", (new_w, new_h), (0, 0, 0, 255))
+            final = Image.alpha_composite(final, resized)
+            self._gif_frames.append(ImageTk.PhotoImage(final.convert("RGB")))
+
+        if self._gif_id:
+            self.canvas.delete(self._gif_id)
+        
+        self._current_frame = 0
+        self._gif_id = self.canvas.create_image(cx, cy, image=self._gif_frames[0], tags="gif_img")
+        
+        self.canvas.coords(self.breach_id, cx, cy + new_h // 2 + 30)
+        self.canvas.itemconfig(self.breach_id, text="◈  SYSTEM BREACH IN PROGRESS...  ◈")
+        self.canvas.tag_raise(self.breach_id)
+        self.canvas.tag_raise(self.terminal_id)
+
+    def _animate_gif(self):
+        if not self._running or not self._gif_frames:
+            return
+            
+        self._current_frame = (self._current_frame + 1) % len(self._gif_frames)
+        self.canvas.itemconfig(self._gif_id, image=self._gif_frames[self._current_frame])
+        
+        # Piscar breach indicator
+        self.canvas.itemconfig(self.breach_id,
+            fill=GREEN_NEON if random.random() > 0.12 else "#000000")
+            
+        self.after(50, self._animate_gif)
 
     def on_leave(self):
-        """Chamado quando o usuário navega para outro painel — para os GIFs."""
-        self._clear()
+        self._running = False
+
 
 
 # ════════════════════════════════════════════════════════
