@@ -121,10 +121,23 @@ ASSETS = os.path.join(BASE_DIR, "assets")
 def asset(filename):
     return os.path.join(ASSETS, filename)
 
-# ── Caminhos de Dados Persistentes (Mesma pasta do .exe no pendrive) ──
+# ── Caminhos de Dados Persistentes (Subpasta organizada ao lado do .exe) ──
 _EXE_DIR = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
-HISTORY_DB = os.path.join(_EXE_DIR, "dedsec_history.json")
-_USER_CFG  = os.path.join(_EXE_DIR, "user.cfg") # Agora o nome do usuário também persiste no pendrive
+_DATA_DIR = os.path.join(_EXE_DIR, "DedSec_Data")
+os.makedirs(_DATA_DIR, exist_ok=True)
+HISTORY_DB = os.path.join(_DATA_DIR, "dedsec_history.json")
+_USER_CFG  = os.path.join(_DATA_DIR, "user.cfg")
+
+# Migração automática: se existem dados antigos soltos na pasta do .exe, move para DedSec_Data
+for _old_file in ["dedsec_history.json", "user.cfg"]:
+    _old_path = os.path.join(_EXE_DIR, _old_file)
+    _new_path = os.path.join(_DATA_DIR, _old_file)
+    if os.path.exists(_old_path) and not os.path.exists(_new_path):
+        try:
+            import shutil
+            shutil.move(_old_path, _new_path)
+        except Exception:
+            pass
 
 # ── Gerenciamento de Histórico (Dossiê) ──
 class HistoryManager:
@@ -1709,7 +1722,7 @@ class CustomScriptsPanel(BasePanel):
     """Painel para executar scripts de terceiros de forma rápida."""
     def __init__(self, master, **kwargs):
         super().__init__(master, "MEUS SCRIPTS (DYNAMIC)", **kwargs)
-        self.scripts_path = os.path.join(os.getcwd(), "meus_scripts")
+        self.scripts_path = os.path.join(_DATA_DIR, "meus_scripts")
         if not os.path.exists(self.scripts_path):
             os.makedirs(self.scripts_path)
             
